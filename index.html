@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Часы">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Часы</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ЭКРАН: МИРОВЫЕ ЧАСЫ -->
+<div class="screen active" id="screen-world">
+  <div class="header">
+    <button class="header-btn" id="editWorldBtn">Правка</button>
+    <button class="header-btn-round" id="addCityBtn">+</button>
+  </div>
+  <h1 class="big-title">Мировые часы</h1>
+  <div class="world-list" id="worldList"></div>
+</div>
+
+<!-- ЭКРАН: БУДИЛЬНИКИ -->
+<div class="screen" id="screen-alarms">
+  <div class="header">
+    <div></div>
+    <button class="header-btn-round" id="addAlarmBtn">+</button>
+  </div>
+  <h1 class="big-title">Будильники</h1>
+
+  <div class="section-title">
+    <svg viewBox="0 0 24 24" class="section-icon"><path d="M3 18v-6a9 9 0 0118 0v6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 19H3" stroke="currentColor" stroke-width="2"/></svg>
+    Сон | Пробуждение
+  </div>
+  <div class="sleep-row">
+    <span class="sleep-empty">Нет будильника</span>
+    <button class="setup-btn" id="setupBtn">НАСТРОИТЬ</button>
+  </div>
+
+  <div class="section-title">Другие</div>
+  <div class="alarm-list" id="alarmList"></div>
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔔</div>
+    <div class="empty-text">Нет будильников</div>
+    <div class="empty-sub">Нажми + чтобы добавить</div>
+  </div>
+</div>
+
+<!-- ЭКРАН: СЕКУНДОМЕР -->
+<div class="screen" id="screen-stopwatch">
+  <div class="header"><div></div><div></div></div>
+  <h1 class="big-title">Секундомер</h1>
+
+  <div class="sw-pages">
+    <div class="sw-page active" id="swPageDigital">
+      <div class="sw-display" id="stopwatchDisplay">00:00,00</div>
+    </div>
+    <div class="sw-page" id="swPageAnalog">
+      <div class="sw-analog-wrap">
+        <svg class="sw-analog" viewBox="0 0 300 300">
+          <circle cx="150" cy="150" r="140" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+          <g id="swTicks"></g>
+          <line id="swHand" x1="150" y1="150" x2="150" y2="30"
+                stroke="#ff9f0a" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="150" cy="150" r="6" fill="#ff9f0a"/>
+          <text x="150" y="200" text-anchor="middle" fill="#fff"
+                font-size="28" font-weight="200" font-family="-apple-system,sans-serif"
+                id="swAnalogText">00:00,00</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="sw-controls">
+    <button class="round-btn" id="swLap">Круг</button>
+    <div class="page-dots" id="swDots">
+      <span class="dot active" data-page="0"></span>
+      <span class="dot" data-page="1"></span>
+    </div>
+    <button class="round-btn green" id="swStart">Старт</button>
+  </div>
+  <div class="laps" id="laps"></div>
+</div>
+
+<!-- ЭКРАН: ТАЙМЕР -->
+<div class="screen" id="screen-timer">
+  <div class="header"><div></div><div></div></div>
+  <h1 class="big-title">Таймеры</h1>
+
+  <div class="timer-wheel" id="timerWheel">
+    <div class="wheel-highlight"></div>
+    <div class="wheel-col" data-type="hours"></div>
+    <div class="wheel-col" data-type="minutes"></div>
+    <div class="wheel-col" data-type="seconds"></div>
+  </div>
+
+  <div class="timer-controls">
+    <button class="round-btn" id="timerCancel">Отмена</button>
+    <button class="round-btn green" id="timerStart">Старт</button>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row">
+      <span>Название</span>
+      <span class="settings-value">Таймер</span>
+    </div>
+    <div class="settings-row">
+      <span>По завершении</span>
+      <span class="settings-value">Radar ›</span>
+    </div>
+  </div>
+
+  <div class="section-title">Недавние</div>
+  <div class="recent-list" id="recentList"></div>
+</div>
+
+<!-- НИЖНЯЯ НАВИГАЦИЯ -->
+<nav class="tab-bar">
+  <button class="tab active" data-screen="world">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18" stroke="currentColor" stroke-width="1.8"/></svg>
+    <span>Мировые</span>
+  </button>
+  <button class="tab" data-screen="alarms">
+    <svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 00-7 7v4l-2 3h18l-2-3v-4a7 7 0 00-7-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 20a3 3 0 006 0" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+    <span>Будильники</span>
+  </button>
+  <button class="tab" data-screen="stopwatch">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span>Секундомер</span>
+  </button>
+  <button class="tab" data-screen="timer">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2 2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span>Таймеры</span>
+  </button>
+</nav>
+
+<!-- МОДАЛКА: ДОБАВИТЬ/РЕДАКТИРОВАТЬ БУДИЛЬНИК -->
+<div class="modal" id="alarmModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <button class="modal-cancel" id="modalCancel">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+      <h2 id="modalTitle">Новый будильник</h2>
+      <button class="modal-save" id="modalSave">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="time-wheel" id="alarmWheel">
+      <div class="wheel-highlight"></div>
+      <div class="wheel-col" data-type="hours"></div>
+      <div class="wheel-col" data-type="minutes"></div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-row clickable" id="repeatRow">
+        <span>Повтор</span>
+        <span class="settings-value" id="repeatValue">Никогда ›</span>
+      </div>
+      <div class="settings-row clickable" id="labelRow">
+        <span>Название</span>
+        <span class="settings-value" id="labelValue">Будильник</span>
+      </div>
+      <div class="settings-row clickable" id="soundRow">
+        <span>Звук</span>
+        <span class="settings-value" id="soundValue">Отражение ›</span>
+      </div>
+      <div class="settings-row">
+        <span>Отложить</span>
+        <div class="switch on" id="snoozeSwitch"></div>
+      </div>
+      <div class="settings-row">
+        <span>Длительность</span>
+        <span class="settings-value orange" id="snoozeDuration">9 мин</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: ПОВТОР (дни недели) -->
+<div class="modal" id="repeatModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <button class="modal-cancel" id="repeatCancel">Отмена</button>
+      <h2>Повтор</h2>
+      <button class="modal-save" id="repeatSave">Готово</button>
+    </div>
+    <div class="days-picker">
+      <button class="day" data-day="1">Пн</button>
+      <button class="day" data-day="2">Вт</button>
+      <button class="day" data-day="3">Ср</button>
+      <button class="day" data-day="4">Чт</button>
+      <button class="day" data-day="5">Пт</button>
+      <button class="day" data-day="6">Сб</button>
+      <button class="day" data-day="0">Вс</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: ВЫБОР ГОРОДА -->
+<div class="modal" id="cityModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <button class="modal-cancel" id="cityCancel">Отмена</button>
+      <h2>Выбрать город</h2>
+      <div style="width:60px"></div>
+    </div>
+    <input type="text" id="citySearch" class="search-input" placeholder="Поиск города">
+    <div class="city-list" id="cityList"></div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: СОН -->
+<div class="modal" id="sleepModal">
+  <div class="modal-content sleep-modal-content">
+    <div class="modal-header">
+      <button class="modal-cancel" id="sleepClose">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+      <div></div>
+      <div style="width:36px"></div>
+    </div>
+
+    <div class="sleep-body">
+      <div class="sleep-bed-icon">
+        <svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="14" width="72" height="14" rx="6" fill="#5a5ac8"/>
+          <rect x="4" y="26" width="72" height="20" rx="4" fill="#6a6ae0"/>
+          <rect x="4" y="42" width="6" height="12" rx="2" fill="#5a5ac8"/>
+          <rect x="70" y="42" width="6" height="12" rx="2" fill="#5a5ac8"/>
+          <circle cx="22" cy="20" r="5" fill="#fff"/>
+          <circle cx="34" cy="20" r="5" fill="#fff"/>
+        </svg>
+      </div>
+
+      <h2 class="sleep-title">Сон теперь в «Здоровье»</h2>
+      <p class="sleep-text">
+        После настройки расписания сна вы сможете менять будильник в приложении «Часы».
+      </p>
+      <p class="sleep-text">
+        Также можно задать цель сна, создать ритуал перед сном и многое другое.
+      </p>
+    </div>
+
+    <button class="sleep-action-btn" id="sleepActionBtn">Настроить в «Здоровье»</button>
+  </div>
+</div>
+
+<!-- ЭКРАН СРАБАТЫВАНИЯ БУДИЛЬНИКА -->
+<div class="alarm-ringing" id="alarmRinging">
+  <div class="ringing-content">
+    <div class="ringing-time" id="ringingTime">07:00</div>
+    <div class="ringing-label" id="ringingLabel">Будильник</div>
+    <div class="ringing-buttons">
+      <button class="ring-btn snooze" id="snoozeBtn">Отложить</button>
+      <button class="ring-btn stop" id="stopBtn">Выключить</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
