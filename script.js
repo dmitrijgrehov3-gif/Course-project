@@ -176,17 +176,17 @@ function renderAlarms() {
 
   list.innerHTML = alarms.map(a => `
     <div class="alarm-swipe-wrap" data-id="${a.id}">
-      <div class="alarm-delete-bg">
+      <div class="alarm-delete-bg" data-role="delete">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/>
         </svg>
       </div>
       <div class="alarm-card ${a.enabled ? '' : 'disabled'}" data-id="${a.id}">
-        <div class="alarm-info" onclick="handleAlarmEdit(event, '${a.id}')">
+        <div class="alarm-info" data-role="edit">
           <div class="alarm-time">${a.time}</div>
           <div class="alarm-label">${a.label || 'Будильник'}${a.days && a.days.length ? ' · ' + formatDays(a.days) : ''}</div>
         </div>
-        <div class="switch ${a.enabled ? 'on' : ''}" onclick="handleAlarmToggle(event, '${a.id}')"></div>
+        <div class="switch ${a.enabled ? 'on' : ''}" data-role="toggle"></div>
       </div>
     </div>
   `).join('');
@@ -194,24 +194,13 @@ function renderAlarms() {
   attachSwipeHandlers();
 }
 
-function handleAlarmToggle(e, id) {
-  e.stopPropagation();
-  e.preventDefault();
+function toggleAlarm(id) {
   const a = alarms.find(x => x.id === id);
   if (!a) return;
   a.enabled = !a.enabled;
   saveAlarms();
   renderAlarms();
   if (navigator.vibrate) navigator.vibrate(10);
-}
-
-function handleAlarmEdit(e, id) {
-  const card = e.currentTarget.closest('.alarm-card');
-  if (card && card.style.transform && card.style.transform.includes('-')) {
-    card.style.transform = 'translateX(0)';
-    return;
-  }
-  editAlarm(id);
 }
 
 function editAlarm(id) {
@@ -347,10 +336,11 @@ document.getElementById('snoozeDuration').addEventListener('click', () => {
   }
 });
 
-// ================= СВАЙП ДЛЯ УДАЛЕНИЯ =================
+// ================= СВАЙП БУДИЛЬНИКА ВЛЕВО + ТАП =================
 function attachSwipeHandlers() {
   document.querySelectorAll('.alarm-card').forEach(card => {
-    let startX = 0, startY = 0, currentX = 0, isOpen = false, isDragging = false;
+    let startX = 0, startY = 0, currentX = 0;
+    let isOpen = false, isDragging = false, isHorizontal = false;
     const OPEN_X = -88;
 
     card.addEventListener('touchstart', (e) => {
@@ -359,20 +349,31 @@ function attachSwipeHandlers() {
       currentX = isOpen ? OPEN_X : 0;
       card.classList.add('no-transition');
       isDragging = false;
+      isHorizontal = false;
     }, { passive: true });
 
     card.addEventListener('touchmove', (e) => {
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
+
       if (!isDragging) {
-        if (Math.abs(dx) < Math.abs(dy) || Math.abs(dx) < 8) return;
-        isDragging = true;
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          isHorizontal = true;
+          isDragging = true;
+        } else {
+          return; // вертикальный скролл — не мешаем
+        }
       }
+
       let x = currentX + dx;
       if (x > 0) x = 0;
       if (x < OPEN_X - 40) x = OPEN_X - 40;
       card.style.transform = `translateX(${x}px)`;
-    }, { passive: true });
+
+      // Как только сдвинули — блокируем клики по элементам карточки
+      if (isHorizontal && e.cancelable) e.preventDefault();
+    }, { passive: false });
 
     card.addEventListener('touchend', (e) => {
       card.classList.remove('no-transition');
@@ -387,10 +388,34 @@ function attachSwipeHandlers() {
         isOpen = false;
       }
     });
+
+    // Тап по info — редактирование (или закрытие свайпа)
+    card.querySelector('[data-role="edit"]').addEventListener('click', (e) => {
+      if (isOpen) {
+        e.stopPropagation();
+        card.style.transform = 'translateX(0)';
+        isOpen = false;
+        return;
+      }
+      editAlarm(card.dataset.id);
+    });
+
+    // Тап по switch — переключение
+    card.querySelector('[data-role="toggle"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isOpen) {
+        card.style.transform = 'translateX(0)';
+        isOpen = false;
+        return;
+      }
+      toggleAlarm(card.dataset.id);
+    });
   });
 
+  // Тап по корзине — удаление
   document.querySelectorAll('.alarm-delete-bg').forEach(bg => {
-    bg.addEventListener('click', () => {
+    bg.addEventListener('click', (e) => {
+      e.stopPropagation();
       const wrap = bg.closest('.alarm-swipe-wrap');
       const id = wrap.dataset.id;
       wrap.classList.add('removing');
@@ -403,6 +428,7 @@ function attachSwipeHandlers() {
     });
   });
 
+  // Закрытие всех свайпов при тапе вне
   document.addEventListener('touchstart', (e) => {
     if (!e.target.closest('.alarm-swipe-wrap')) {
       document.querySelectorAll('.alarm-card').forEach(c => {
@@ -467,9 +493,10 @@ document.getElementById('sleepActionBtn').addEventListener('click', () => {
   setTimeout(() => alert('Откроется приложение «Здоровье»'), 300);
 });
 
-// ================= СЕКУНДОМЕР =================
+// ================= СЕКУНДОМЕР + СВАЙП МЕЖДУ ЭКРАНАМИ =================
 let swRunning = false, swStartTime = 0, swElapsed = 0, swInterval = null, swLapCount = 0;
 let swCurrentPage = 0;
+const SW_TOTAL_PAGES = 2;
 
 function formatSW(ms) {
   const total = Math.floor(ms / 10);
@@ -479,6 +506,7 @@ function formatSW(ms) {
   return `${m}:${s},${cs}`;
 }
 
+// Строим циферблат
 (function buildSwTicks() {
   const g = document.getElementById('swTicks');
   if (!g) return;
@@ -517,19 +545,134 @@ function updateSwUI(ms) {
   if (hand) hand.setAttribute('transform', `rotate(${deg} 150 150)`);
 }
 
+// Переключение страницы (точки + свайп используют одну функцию)
+function goToSwPage(page, animate = true) {
+  if (page < 0 || page >= SW_TOTAL_PAGES) return;
+  swCurrentPage = page;
+
+  document.querySelectorAll('#swDots .dot').forEach(d => {
+    d.classList.toggle('active', Number(d.dataset.page) === page);
+  });
+
+  const pages = document.querySelectorAll('.sw-page');
+  pages.forEach((p, i) => {
+    if (!animate) p.classList.add('no-transition');
+    else p.classList.remove('no-transition');
+
+    // Если i === page → translateX(0). Если i < page → translateX(-100%). Если i > page → translateX(100%).
+    if (i === page) p.style.transform = 'translateX(0)';
+    else if (i < page) p.style.transform = 'translateX(-100%)';
+    else p.style.transform = 'translateX(100%)';
+
+    if (!animate) {
+      requestAnimationFrame(() => p.classList.remove('no-transition'));
+    }
+  });
+
+  if (navigator.vibrate) navigator.vibrate(5);
+}
+
+// Клик по точкам
 document.querySelectorAll('#swDots .dot').forEach(dot => {
   dot.addEventListener('click', () => {
-    const page = Number(dot.dataset.page);
-    swCurrentPage = page;
-    document.querySelectorAll('#swDots .dot').forEach(d => d.classList.remove('active'));
-    dot.classList.add('active');
-    document.querySelectorAll('.sw-page').forEach((p, i) => {
-      p.classList.toggle('active', i === page);
-    });
-    if (navigator.vibrate) navigator.vibrate(5);
+    goToSwPage(Number(dot.dataset.page));
   });
 });
 
+// Свайп между страницами секундомера
+(function attachSwSwipe() {
+  const container = document.querySelector('.sw-pages');
+  if (!container) return;
+
+  const pages = container.querySelectorAll('.sw-page');
+  let startX = 0, startY = 0, dx = 0, dy = 0;
+  let isHorizontal = false, isDragging = false;
+
+  container.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dx = 0; dy = 0;
+    isHorizontal = false;
+    isDragging = false;
+  }, { passive: true });
+
+  container.addEventListener('touchmove', (e) => {
+    dx = e.touches[0].clientX - startX;
+    dy = e.touches[0].clientY - startY;
+
+    if (!isDragging) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        isHorizontal = true;
+        isDragging = true;
+        // отключаем transition на время перетаскивания
+        pages.forEach(p => p.classList.add('no-transition'));
+      } else {
+        return;
+      }
+    }
+
+    if (isHorizontal) {
+      if (e.cancelable) e.preventDefault();
+
+      const w = container.offsetWidth;
+      // Ограничим dx от -w до w
+      let clampedDx = Math.max(-w, Math.min(w, dx));
+
+      // Текущая страница: сдвигается на clampedDx
+      // Соседняя: подтягивается с противоположной стороны
+      const current = swCurrentPage;
+
+      pages.forEach((p, i) => {
+        if (i === current) {
+          p.style.transform = `translateX(${clampedDx}px)`;
+        } else if (i === current + 1) {
+          // страница справа (следующая) — въезжает
+          p.style.transform = `translateX(${w + clampedDx}px)`;
+        } else if (i === current - 1) {
+          // страница слева (предыдущая) — въезжает
+          p.style.transform = `translateX(${-w + clampedDx}px)`;
+        } else {
+          // далёкие страницы — держим в стороне
+          p.style.transform = i < current ? 'translateX(-100%)' : 'translateX(100%)';
+        }
+      });
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchend', () => {
+    if (!isHorizontal) return;
+    pages.forEach(p => p.classList.remove('no-transition'));
+
+    const w = container.offsetWidth;
+    const threshold = w * 0.4; // 40% ширины — порог
+
+    if (dx < -threshold && swCurrentPage < SW_TOTAL_PAGES - 1) {
+      goToSwPage(swCurrentPage + 1);
+    } else if (dx > threshold && swCurrentPage > 0) {
+      goToSwPage(swCurrentPage - 1);
+    } else {
+      // возврат на текущую страницу
+      goToSwPage(swCurrentPage);
+    }
+
+    isDragging = false;
+    isHorizontal = false;
+  }, { passive: true });
+})();
+
+// Инициализация: выставить страницы в правильные позиции
+(function initSwPages() {
+  const pages = document.querySelectorAll('.sw-page');
+  pages.forEach((p, i) => {
+    p.classList.add('no-transition');
+    if (i === 0) p.style.transform = 'translateX(0)';
+    else p.style.transform = 'translateX(100%)';
+    requestAnimationFrame(() => p.classList.remove('no-transition'));
+  });
+})();
+
+// Кнопки секундомера
 document.getElementById('swStart').addEventListener('click', () => {
   if (swRunning) {
     clearInterval(swInterval);
